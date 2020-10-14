@@ -1,0 +1,76 @@
+﻿@model LoginViewModel
+
+<div id="logreg-forms">
+
+    <form id="external-account" asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" class="form-horizontal" role="form">
+        <div class="font-weight-normal controlColor">
+            <div class="row">
+                <div class="col-12 pt-2">
+                    <h1 class="h3 mb-3 font-weight-normal text-white" style="text-align:center">Login</h1>
+                </div>
+            </div>
+
+        </div>
+
+        @*<div class="social-login pb-0 mb-0">
+                @if (Model.ExternalLogins?.Count > 0)
+                {
+                @foreach (var provider in Model.ExternalLogins)
+                {
+
+                        @if (provider.Name.ToLower().Contains("facebook"))
+                        {
+                            <button type="submit" class="btn btn-block facebook-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-facebook-sign"></i> Autenticar com @provider.DisplayName</button>
+                        }
+                        else
+                        {
+                            @if (provider.Name.ToLower().Contains("micro"))
+                            {@
+                                <button type="submit" class="btn btn-block microsoft-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-windows3"></i> Autenticar com @provider.DisplayName</button>
+                            }
+                            else
+                            {
+                                @if (provider.Name.ToLower().Contains("google"))
+                                {
+                                <button type="submit" class="btn btn-block google-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-google-plus1"></i> Autenticar com @provider.DisplayName</button>
+                                }
+
+                                else
+                                {
+                                    <button type="submit" class="btn controlColor" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName.">@provider.DisplayName</button>
+                                }
+                            }
+                        }
+
+                }
+                }
+            </div>*@
+    </form>
+    <form id="account" asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" role="form">
+        @*@if (Model.ExternalLogins?.Count > 0)
+            {
+                <p style="text-align:center"> OU </p>
+            }*@
+        <input asp-for="Email" placeholder="Email..." type="email" required="" autofocus="" class="mb-3 form-control" />
+        <input asp-for="Password" placeholder="Senha..." type="password" required="" class="form-control mb-3" />
+        <label class="textColor" asp-for="RememberMe">
+            <input asp-for="RememberMe" />
+            Lembrar-me
+        </label>
+        <p>
+            <a id="forgot-password" asp-action="ForgotPassword" class="pb-2 textColor">Esqueceu sua senha?</a>
+        </p>
+
+        <p>
+            <button type="submit" class="btn controlColor btn-block"><i class="icon-sign-in-alt"></i> Autenticar</button>
+        </p>
+        <p>
+            <a asp-action="Register" class="btn controlColor text-white" id="btn-signup"><i class="icon-user-plus"></i> Registrar novo usuário?</a>
+        </p>
+        <div asp-validation-summary="All" class="text-danger"></div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

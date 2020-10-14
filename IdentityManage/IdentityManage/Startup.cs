@@ -1,7 +1,9 @@
+using IdentityManager.Service;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,8 +30,29 @@ namespace IdentityManager
             services.AddDbContext<ApplicationDbContext>(options => 
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
 
-            services.AddIdentity<IdentityUser, IdentityRole>()
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+            services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>()
+                    .AddDefaultTokenProviders();
+
+            services.AddTransient<IEmailSender, MailJetEmailSender>();
+
+            services.Configure<IdentityOptions>(opt =>
+            {
+                opt.Password.RequireDigit =false;
+                opt.Password.RequiredLength =5;
+                opt.Password.RequireLowercase = false;
+                opt.Password.RequireUppercase = false;
+                opt.Password.RequireNonAlphanumeric = false;
+                opt.Password.RequiredUniqueChars = 0;
+                opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromSeconds(10);
+                opt.Lockout.AllowedForNewUsers = true;
+                opt.Lockout.MaxFailedAccessAttempts = 2;
+               // opt.User.AllowedUserNameCharacters = true;
+                opt.User.RequireUniqueEmail = true;
+
+                
+            });
+
+
 
             services.AddControllersWithViews();
         }
