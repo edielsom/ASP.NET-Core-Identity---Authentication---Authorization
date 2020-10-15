@@ -1,7 +1,6 @@
 using IdentityManager.Service;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -9,9 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace IdentityManager
 {
@@ -27,7 +23,7 @@ namespace IdentityManager
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<ApplicationDbContext>(options => 
+            services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
 
             services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>()
@@ -37,8 +33,8 @@ namespace IdentityManager
 
             services.Configure<IdentityOptions>(opt =>
             {
-                opt.Password.RequireDigit =false;
-                opt.Password.RequiredLength =5;
+                opt.Password.RequireDigit = false;
+                opt.Password.RequiredLength = 5;
                 opt.Password.RequireLowercase = false;
                 opt.Password.RequireUppercase = false;
                 opt.Password.RequireNonAlphanumeric = false;
@@ -46,17 +42,46 @@ namespace IdentityManager
                 opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromSeconds(10);
                 opt.Lockout.AllowedForNewUsers = true;
                 opt.Lockout.MaxFailedAccessAttempts = 2;
-               // opt.User.AllowedUserNameCharacters = true;
+                // opt.User.AllowedUserNameCharacters = true;
                 opt.User.RequireUniqueEmail = true;
                 opt.SignIn.RequireConfirmedEmail = true;
-                
+
             });
 
-
+            ExternalLogin(services);
 
             services.AddControllersWithViews();
         }
 
+        #region Método responsável por [CRIAR AS CONFIGURAÇÕES DOS LOGINS EXTERNOS]
+        private void ExternalLogin(IServiceCollection services)
+        {
+            //Configurando para acessar o login através do Facebook
+            services.AddAuthentication().AddFacebook(opt =>
+            {
+                //As informações de Acesso é configurado através da página do facebook developer.
+                opt.AppId = Configuration["ExternalLogin:Facebook:AppId"];
+                opt.AppSecret = Configuration["ExternalLogin:Facebook:AppSecret"];
+            });
+
+
+            //Configurando para acessar o login através do Google
+            services.AddAuthentication().AddGoogle(opt =>
+            {
+                //As informações de Acesso é configurado através da página do Google developer.
+                opt.ClientId = Configuration["ExternalLogin:Google:ClientId"];
+                opt.ClientSecret = Configuration["ExternalLogin:Google:ClientSecret"];
+            });
+
+            //Configurando para acessar o login através do Microsoft
+            services.AddAuthentication().AddMicrosoftAccount(opt =>
+            {
+                //As informações de Acesso é configurado através da página do Microsoft developer.
+                opt.ClientId = Configuration["ExternalLogin:Microsoft:ClientId"];
+                opt.ClientSecret = Configuration["ExternalLogin:Microsoft:ClientSecret"];
+            });
+        }
+        #endregion
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {

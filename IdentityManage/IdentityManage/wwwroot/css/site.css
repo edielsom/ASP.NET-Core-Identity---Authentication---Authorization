@@ -184,7 +184,17 @@ body {
 }
 
 .microsoft-btn {
-    background-color: #2672ec;
+    background-color: #1861ac;
+    color: white;
+}
+
+.google-btn {
+    background-color: #ef442c;
+    color: white;
+}
+
+.twiter-btn {
+    background-color: #08afee;
     color: white;
 }
 
