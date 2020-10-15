@@ -1,9 +1,7 @@
 ﻿using IdentityManager.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using Microsoft.AspNetCore.Identity.UI.V4.Pages.Internal.Account.Manage;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
 namespace IdentityManager.Controllers
@@ -40,7 +38,7 @@ namespace IdentityManager.Controllers
             {
                 //Cria uma instância de uma usuário
                 var user = new ApplicationUser
-                { UserName = model.Email, Email = model.Email, Name = model.Name, EmailConfirmed = true, LockoutEnabled = true, AccessFailedCount = 0 };
+                { UserName = model.Email, Email = model.Email, Name = model.Name, EmailConfirmed = false, LockoutEnabled = true, AccessFailedCount = 0 };
 
                 //Faz a operação de inserção
                 var result = await _userManager.CreateAsync(user, model.Password);
@@ -48,8 +46,16 @@ namespace IdentityManager.Controllers
                 //Se conseguir cadastrar retorna sucesso.
                 if (result.Succeeded)
                 {
+                    //Pede para o usuário confirme seu email
+                    var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var callbackurl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: HttpContext.Request.Scheme);
+
+                    await _emailSender.SendEmailAsync(model.Email, "Confirme seu email - Identity Manager",
+                        "Por favor, confirme seu email clicando no link aqui: <a href=\"" + callbackurl + "\">link</a>");
+
+                    //Efetua o Login
                     await _signInManager.SignInAsync(user, isPersistent: false);
-                    return RedirectToAction("Index", "Home");
+                    return LocalRedirect(returnurl);
                 }
                 //Adiciona todos os erros encontrados.
                 AddErrors(result);
@@ -141,9 +147,60 @@ namespace IdentityManager.Controllers
         }
 
         [HttpGet]
+        public IActionResult ResetPassword(string code = null)
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+
+                if (user == null)
+                {
+                    RedirectToAction("ResetPasswordConfirmation");
+                }
+
+                var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
+
+                if (result.Succeeded)
+                {
+                    RedirectToAction("ResetPasswordConfirmation");
+                }
+                AddErrors(result);
+            }
+            return View();
+        }
+
+        [HttpGet]
         public IActionResult ForgotPasswordConfirmation()
         {
             return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ConfirmEmail(string userId,string code)
+        {
+            if(userId == null || code == null)
+            {
+                return View("Error");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if(user == null)
+            {
+                return View("Error");
+            }
+
+            var result = await _userManager.ConfirmEmailAsync(user, code);
+
+            return View(result.Succeeded ? "ConfirmEmail" : "Error");
         }
         private void AddErrors(IdentityResult result)
         {

@@ -48,7 +48,7 @@ namespace IdentityManager
                 opt.Lockout.MaxFailedAccessAttempts = 2;
                // opt.User.AllowedUserNameCharacters = true;
                 opt.User.RequireUniqueEmail = true;
-
+                opt.SignIn.RequireConfirmedEmail = true;
                 
             });
 
