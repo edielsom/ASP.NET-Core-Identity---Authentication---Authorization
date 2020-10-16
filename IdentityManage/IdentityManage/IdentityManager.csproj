@@ -22,4 +22,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\css\plugin\js\components\tinymce\langs\" />
+  </ItemGroup>
+
 </Project>

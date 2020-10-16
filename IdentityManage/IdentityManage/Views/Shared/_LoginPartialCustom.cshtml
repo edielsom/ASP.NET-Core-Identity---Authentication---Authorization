@@ -13,9 +13,9 @@
             <a class="nav-link" href="#">Olá @UserManager.GetUserName(User)</a>
         </li>
         <li class="nav-item">
-           <form id="logoutForm" method="post" class="form-inline" asp-controller="Account" asp-action="LogOff">
-               <button type="submit" class="btn nav-link">LogOut</button>
-           </form>
+            <form id="logoutForm" method="post" class="form-inline" asp-controller="Account" asp-action="LogOff">
+                <button type="submit" class="btn nav-link">LogOut</button>
+            </form>
         </li>
     }
     else
@@ -25,6 +25,10 @@
         </li>
         <li class="nav-item">
             <a class="nav-link" asp-controller="Account" asp-action="Login">Login</a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" asp-controller="Account" asp-action="LoginTemplate">Login Template</a>
         </li>
     }
 

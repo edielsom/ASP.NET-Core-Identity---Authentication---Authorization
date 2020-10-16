@@ -171,12 +171,8 @@ namespace IdentityManager.Controllers
                     return View(model);
                 }
             }
-
-
             return View(model);
         }
-
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
