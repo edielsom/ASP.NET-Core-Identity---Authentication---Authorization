@@ -1,14 +1,17 @@
 ﻿using IdentityManager.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.VisualBasic;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 
 namespace IdentityManager.Controllers
 {
+    [Authorize]
     public class AccountController : Controller
     {
         private readonly UserManager<IdentityUser> _userManager;
@@ -16,6 +19,7 @@ namespace IdentityManager.Controllers
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly UrlEncoder _urlEncoder;
+
         public AccountController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IEmailSender emailSender,
             UrlEncoder urlEncoder, RoleManager<IdentityRole> roleManager)
         {
@@ -26,69 +30,121 @@ namespace IdentityManager.Controllers
             _roleManager = roleManager;
         }
 
+
         public IActionResult Index()
         {
             return View();
         }
 
-        public IActionResult Register(string returnurl = null)
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> Register(string returnurl = null)
         {
+            if (!await _roleManager.RoleExistsAsync("Admin"))
+            {
+                //create roles
+                await _roleManager.CreateAsync(new IdentityRole("Admin"));
+                await _roleManager.CreateAsync(new IdentityRole("User"));
+            }
+
+            List<SelectListItem> listItems = new List<SelectListItem>();
+            listItems.Add(new SelectListItem()
+            {
+                Value = "Admin",
+                Text = "Admin"
+            });
+            listItems.Add(new SelectListItem()
+            {
+                Value = "User",
+                Text = "User"
+            });
+
+
+
             ViewData["ReturnUrl"] = returnurl;
-            RegisterViewModel registerViewModel = new RegisterViewModel();
+            RegisterViewModel registerViewModel = new RegisterViewModel()
+            {
+                RoleList = listItems
+            };
             return View(registerViewModel);
         }
 
-
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model, string returnurl = null)
         {
             ViewData["ReturnUrl"] = returnurl;
             returnurl = returnurl ?? Url.Content("~/");
-
             if (ModelState.IsValid)
             {
-                //Cria uma instância de uma usuário
-                var user = new ApplicationUser
-                { UserName = model.Email, Email = model.Email, Name = model.Name, EmailConfirmed = false, LockoutEnabled = true, AccessFailedCount = 0 };
-
-                //Faz a operação de inserção
+                var user = new ApplicationUser { UserName = model.Email, Email = model.Email, Name = model.Name };
                 var result = await _userManager.CreateAsync(user, model.Password);
-
-                //Se conseguir cadastrar retorna sucesso.
                 if (result.Succeeded)
                 {
-                    //Pede para o usuário confirme seu email
+                    if (model.RoleSelected != null && model.RoleSelected.Length > 0 && model.RoleSelected == "Admin")
+                    {
+                        await _userManager.AddToRoleAsync(user, "Admin");
+                    }
+                    else
+                    {
+                        await _userManager.AddToRoleAsync(user, "User");
+                    }
+
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     var callbackurl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: HttpContext.Request.Scheme);
 
-                    await _emailSender.SendEmailAsync(model.Email, "Confirme seu email - Identity Manager",
-                        "Por favor, confirme seu email clicando no link aqui: <a href=\"" + callbackurl + "\">link</a>");
-
-                    //Efetua o Login
+                    await _emailSender.SendEmailAsync(model.Email, "Confirm your account - Identity Manager",
+                        "Please confirm your account by clicking here: <a href=\"" + callbackurl + "\">link</a>");
                     await _signInManager.SignInAsync(user, isPersistent: false);
                     return LocalRedirect(returnurl);
                 }
-                //Adiciona todos os erros encontrados.
                 AddErrors(result);
             }
+
+            List<SelectListItem> listItems = new List<SelectListItem>();
+            listItems.Add(new SelectListItem()
+            {
+                Value = "Admin",
+                Text = "Admin"
+            });
+            listItems.Add(new SelectListItem()
+            {
+                Value = "User",
+                Text = "User"
+            });
+            model.RoleList = listItems;
             return View(model);
         }
 
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> ConfirmEmail(string userId, string code)
+        {
+            if (userId == null || code == null)
+            {
+                return View("Error");
+            }
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return View("Error");
+            }
+            var result = await _userManager.ConfirmEmailAsync(user, code);
+            return View(result.Succeeded ? "ConfirmEmail" : "Error");
 
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
         public IActionResult Login(string returnurl = null)
         {
             ViewData["ReturnUrl"] = returnurl;
             return View();
         }
 
-        public IActionResult LoginTemplate(string returnurl = null)
-        {
-            ViewData["ReturnUrl"] = returnurl;
-            return View();
-        }
-
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model, string returnurl = null)
         {
@@ -96,86 +152,87 @@ namespace IdentityManager.Controllers
             returnurl = returnurl ?? Url.Content("~/");
             if (ModelState.IsValid)
             {
-                //Faz a consulta das credenciais
-                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, isPersistent: model.RememberMe, lockoutOnFailure: true);
-
-
-                //Usuário Localizado
+                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: true);
                 if (result.Succeeded)
                 {
                     return LocalRedirect(returnurl);
                 }
-
-                //Usuário Bloqueado
-                if (result.IsLockedOut)
-                {
-                    return View("Lockout");
-                }
-
                 if (result.RequiresTwoFactor)
                 {
                     return RedirectToAction(nameof(VerifyAuthenticatorCode), new { returnurl, model.RememberMe });
                 }
-
+                if (result.IsLockedOut)
+                {
+                    return View("Lockout");
+                }
                 else
                 {
-                    //Retorna a view e o erro.
-                    ModelState.AddModelError(string.Empty, "Login inválido.");
+                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                     return View(model);
                 }
-               
             }
             return View(model);
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> LogOff()
         {
-            //Faz logoff
             await _signInManager.SignOutAsync();
             return RedirectToAction(nameof(HomeController.Index), "Home");
         }
 
+
+        [HttpGet]
+        [AllowAnonymous]
         public IActionResult ForgotPassword()
         {
             return View();
         }
 
-
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
 
             if (ModelState.IsValid)
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
-
-                if(user == null)
+                if (user == null)
                 {
-                    RedirectToAction("ForgotPasswordConfirmation");
+                    return RedirectToAction("ForgotPasswordConfirmation");
                 }
 
                 var code = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var callbackurl = Url.Action("ResetPassword", "Account", new { userId = user.Id, code = code }, protocol: HttpContext.Request.Scheme);
 
-                await _emailSender.SendEmailAsync(model.Email, "Resetar senha - Identity Manager",
-                    "Por favor, resete sua senha clicando no link aqui: <a href=\"" + callbackurl + "\">link</a>");
+                await _emailSender.SendEmailAsync(model.Email, "Reset Password - Identity Manager",
+                    "Please reset your password by clicking here: <a href=\"" + callbackurl + "\">link</a>");
 
                 return RedirectToAction("ForgotPasswordConfirmation");
             }
+
             return View(model);
         }
 
         [HttpGet]
-        public IActionResult ResetPassword(string code = null)
+        [AllowAnonymous]
+        public IActionResult ForgotPasswordConfirmation()
         {
             return View();
         }
 
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ResetPassword(string code = null)
+        {
+            return code == null ? View("Error") : View();
+        }
+
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
@@ -183,85 +240,62 @@ namespace IdentityManager.Controllers
             if (ModelState.IsValid)
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
-
                 if (user == null)
                 {
-                    RedirectToAction("ResetPasswordConfirmation");
+                    return RedirectToAction("ResetPasswordConfirmation");
                 }
 
                 var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
-
                 if (result.Succeeded)
                 {
-                    RedirectToAction("ResetPasswordConfirmation");
+                    return RedirectToAction("ResetPasswordConfirmation");
                 }
                 AddErrors(result);
             }
+
             return View();
         }
 
         [HttpGet]
-        public IActionResult ForgotPasswordConfirmation()
+        [AllowAnonymous]
+        public IActionResult ResetPasswordConfirmation()
         {
             return View();
         }
-
-        [HttpGet]
-        public async Task<IActionResult> ConfirmEmail(string userId,string code)
-        {
-            if(userId == null || code == null)
-            {
-                return View("Error");
-            }
-
-            var user = await _userManager.FindByIdAsync(userId);
-
-            if(user == null)
-            {
-                return View("Error");
-            }
-
-            var result = await _userManager.ConfirmEmailAsync(user, code);
-
-            return View(result.Succeeded ? "ConfirmEmail" : "Error");
-        }
-
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public IActionResult ExternalLogin(string provider, string returnurl = null)
         {
-            //Solicitar um redirecionamento para o provedor de login externo.
+            //request a redirect to the external login provider
             var redirecturl = Url.Action("ExternalLoginCallback", "Account", new { ReturnUrl = returnurl });
             var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirecturl);
-
             return Challenge(properties, provider);
-
         }
 
+
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> ExternalLoginCallback(string returnurl = null, string remoteError = null)
         {
             returnurl = returnurl ?? Url.Content("~/");
-
-            if(remoteError != null)
+            if (remoteError != null)
             {
-                ModelState.AddModelError(string.Empty, $"Ocorreu um erro com o provider : {remoteError}");
-                return RedirectToAction(nameof(Login));
+                ModelState.AddModelError(string.Empty, $"Error from external provider: {remoteError}");
+                return View(nameof(Login));
             }
-
             var info = await _signInManager.GetExternalLoginInfoAsync();
-
-            if(info == null)
+            if (info == null)
             {
                 return RedirectToAction(nameof(Login));
             }
 
-            //Faça login do usuário com este provedor de login externo, se o usuário já tiver um login.
+            //Sign in the user with this external login provider, if the user already has a login.
             var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false);
             if (result.Succeeded)
             {
-                //Atualiza o token de autenticação.
+                //update any authentication tokens
                 await _signInManager.UpdateExternalAuthenticationTokensAsync(info);
                 return LocalRedirect(returnurl);
             }
@@ -271,36 +305,37 @@ namespace IdentityManager.Controllers
             }
             else
             {
-                // Se o usuário não tiver uma conta, solicitaremos que ele crie uma conta.
+                //If the user does not have account, then we will ask the user to create an account.
                 ViewData["ReturnUrl"] = returnurl;
                 ViewData["ProviderDisplayName"] = info.ProviderDisplayName;
                 var email = info.Principal.FindFirstValue(ClaimTypes.Email);
                 var name = info.Principal.FindFirstValue(ClaimTypes.Name);
-
                 return View("ExternalLoginConfirmation", new ExternalLoginConfirmationViewModel { Email = email, Name = name });
+
             }
         }
 
+
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ExternalLoginConfirmation(ExternalLoginConfirmationViewModel model,string returnurl = null)
+        public async Task<IActionResult> ExternalLoginConfirmation(ExternalLoginConfirmationViewModel model, string returnurl = null)
         {
             returnurl = returnurl ?? Url.Content("~/");
 
             if (ModelState.IsValid)
             {
-                // Obter as informações sobre o usuário do provedor de login externo.
-
+                //get the info about the user from external login provider
                 var info = await _signInManager.GetExternalLoginInfoAsync();
-                if(info == null)
+                if (info == null)
                 {
                     return View("Error");
                 }
-                var user = new ApplicationUser { UserName = model.Email,Email = model.Email, Name = model.Name };
+                var user = new ApplicationUser { UserName = model.Email, Email = model.Email, Name = model.Name };
                 var result = await _userManager.CreateAsync(user);
-
                 if (result.Succeeded)
                 {
+                    await _userManager.AddToRoleAsync(user, "User");
                     result = await _userManager.AddLoginAsync(user, info);
                     if (result.Succeeded)
                     {
@@ -316,6 +351,16 @@ namespace IdentityManager.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> RemoveAuthenticator()
+        {
+
+            var user = await _userManager.GetUserAsync(User);
+            await _userManager.ResetAuthenticatorKeyAsync(user);
+            await _userManager.SetTwoFactorEnabledAsync(user, false);
+            return RedirectToAction(nameof(Index), "Home");
+        }
+
+        [HttpGet]
         public async Task<IActionResult> EnableAuthenticator()
         {
             string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
@@ -323,7 +368,6 @@ namespace IdentityManager.Controllers
             var user = await _userManager.GetUserAsync(User);
             await _userManager.ResetAuthenticatorKeyAsync(user);
             var token = await _userManager.GetAuthenticatorKeyAsync(user);
-
             string AuthenticatorUri = string.Format(AuthenticatorUriFormat, _urlEncoder.Encode("IdentityManager"),
                 _urlEncoder.Encode(user.Email), token);
             var model = new TwoFactorAuthenticationViewModel() { Token = token, QRCodeUrl = AuthenticatorUri };
@@ -332,7 +376,7 @@ namespace IdentityManager.Controllers
 
         [HttpPost]
         public async Task<IActionResult> EnableAuthenticator(TwoFactorAuthenticationViewModel model)
-        {                                    
+        {
             if (ModelState.IsValid)
             {
                 var user = await _userManager.GetUserAsync(User);
@@ -343,7 +387,7 @@ namespace IdentityManager.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("Verifique", "Seu código de autenticação de dois fatores não pôde ser validado.");
+                    ModelState.AddModelError("Verify", "Your two factor auth code could not be avalidated.");
                     return View(model);
                 }
 
@@ -358,6 +402,7 @@ namespace IdentityManager.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> VerifyAuthenticatorCode(bool rememberMe, string returnUrl = null)
         {
             var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
@@ -369,6 +414,9 @@ namespace IdentityManager.Controllers
             return View(new VerifyAuthenticatorViewModel { ReturnUrl = returnUrl, RememberMe = rememberMe });
         }
 
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifyAuthenticatorCode(VerifyAuthenticatorViewModel model)
         {
             model.ReturnUrl = model.ReturnUrl ?? Url.Content("~/");
@@ -392,21 +440,11 @@ namespace IdentityManager.Controllers
                 ModelState.AddModelError(string.Empty, "Invalid Code.");
                 return View(model);
             }
-        }
 
-        [HttpGet]
-        public async Task<IActionResult> RemoveAuthenticator()
-        {
-
-            var user = await _userManager.GetUserAsync(User);
-            await _userManager.ResetAuthenticatorKeyAsync(user);
-            await _userManager.SetTwoFactorEnabledAsync(user, false);
-            return RedirectToAction(nameof(Index), "Home");
         }
 
         private void AddErrors(IdentityResult result)
         {
-            //Adiciona todos os erros
             foreach (var error in result.Errors)
             {
                 ModelState.AddModelError(string.Empty, error.Description);

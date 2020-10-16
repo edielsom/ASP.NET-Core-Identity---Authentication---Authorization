@@ -48,6 +48,10 @@ namespace IdentityManager
 
             });
 
+            services.ConfigureApplicationCookie(opt =>
+            {
+                opt.AccessDeniedPath = new Microsoft.AspNetCore.Http.PathString("/Home/Accessdenied");
+            });
             ExternalLogin(services);
 
             services.AddControllersWithViews();

@@ -1,4 +1,14 @@
-﻿<div class="text-center">
+﻿@*@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authoriation
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+@{
+    var isAdmin = await Authoriation.AuthorizeAsync(User, null, "Admin");
+}*@
+
+<div class="text-center">
     <h1 class="display-4">Welcome</h1>
 
     @if (User.Identity.IsAuthenticated)
@@ -12,6 +22,16 @@
         {
             <a asp-action="EnableAuthenticator" asp-controller="Account">Setup Two Factor Auth</a>
         }    
+        <br /><br />
+
+        @if (User.IsInRole("Admin"))
+        {
+            <h2>Seu Papel é  Administrador</h2>
+        }
+        else
+        {
+            <h2>Seu Papel não é Administrador</h2>
+        }
     }
 
     <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>

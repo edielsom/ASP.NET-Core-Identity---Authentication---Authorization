@@ -2,79 +2,78 @@
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> signInManager
 
-<div id="logreg-forms">
-    <div class="font-weight-normal controlColor border shadow-sm">
-        <div class="row">
-            <div class="col-12 pt-2">
-                <h1 class="h3 mb-3 font-weight-normal text-white" style="text-align:center">Login</h1>
+
+<h1 class="text-info">Log in</h1>
+<div class="row">
+    <div class="col-md-8">
+        <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" role="form">
+            <h4>Use a local account to log in.</h4>
+            <hr />
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Email" class="col-md-2"></label>
+                <div class="col-md-10">
+                    <input asp-for="Email" class="form-control" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
             </div>
-        </div>
+            <div class="form-group">
+                <label asp-for="Password" class="col-md-2"></label>
+                <div class="col-md-10">
+                    <input asp-for="Password" class="form-control" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class=" col-md-10">
+                    <div class="custom-checkbox">
+                        <label asp-for="RememberMe">
+                            <input asp-for="RememberMe" />
+                            @Html.DisplayNameFor(m => m.RememberMe)
+                        </label>
+                    </div>
+                </div>
+            </div>
 
+            <div class="form-group">
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-success form-control">Log in</button>
+                </div>
+            </div>
+            <p>
+                <a asp-action="Register"> Register as a new user?</a>
+            </p>
+            <p>
+                <a asp-action="ForgotPassword"> Forgot your passowrd?</a>
+            </p>
+        </form>
     </div>
-    <form id="account" asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" role="form">
-      
-        <input asp-for="Email" placeholder="Email..." type="email" required="" autofocus="" class="mb-3 form-control" />
-        <input asp-for="Password" placeholder="Senha..." type="password" required="" class="form-control mb-3" />
-        <label class="textColor" asp-for="RememberMe">
-            <input asp-for="RememberMe" />
-            Lembrar-me
-        </label>
-        <p>
-            <a id="forgot-password" asp-action="ForgotPassword" class="pb-2 textColor">Esqueceu sua senha?</a>
-        </p>
-
-        <p>
-            <button type="submit" class="btn  btn-block form-control controlColor"><i class="icon-sign-in-alt"></i> Autenticar</button>
-        </p>
-        <p>
-            <a asp-action="Register" class="btn  btn-block form-control controlColor" id="btn-signup"><i class="icon-user-plus"></i> Novo Usuário</a>
-        </p>
-        <div asp-validation-summary="All" class="text-danger"></div>
-    </form>
-    <p>OU</p>
-    <form id="external-account" asp-controller="Account" asp-action="ExternalLogin" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" class="form-horizontal" role="form">
-        <div class="social-login pb-0 mb-0">
-
-            @{
-                var schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
-                var loginProvider = schemes.ToList();
-            }
-            @if (loginProvider.Count > 0)
-            {
-                @foreach (var provider in loginProvider)
-                {
-
-                    @if (provider.Name.ToLower().Contains("facebook"))
-                    {
-                        <button type="submit" class="btn btn-block facebook-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-facebook-sign"></i> Autenticar com @provider.DisplayName</button>
-                    }
-                    else
-                    {
-                        @if (provider.Name.ToLower().Contains("micro"))
+    @{ 
+        var schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
+        var loginProivders = schemes.ToList();
+    }
+    @if (loginProivders.Count() > 0)
+    {
+    <div class="col-md-4">
+        <section>
+            <h4>User another service to log in.</h4>
+            <form asp-controller="Account" asp-action="ExternalLogin" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" role="form">
+                <div>
+                    <p>
+                        @foreach(var provider in loginProivders)
                         {
-                            <button type="submit" class="btn btn-block microsoft-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-windows3"></i> Autenticar com @provider.DisplayName</button>
+                            <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" 
+                                    title="Log in using your @provider.Name account">@provider.Name</button>
                         }
-                        else
-                        {
-                            @if (provider.Name.ToLower().Contains("google"))
-                            {
-                                <button type="submit" class="btn btn-block google-btn form-control" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName."><i class="icon-google-plus1"></i> Autenticar com @provider.DisplayName</button>
-                            }
-
-                            else
-                            {
-                                <button type="submit" class="btn controlColor" name="provider" value="@provider.Name" title="Entre usando seu sua conta @provider.DisplayName.">@provider.DisplayName</button>
-                            }
-                        }
-                    }
-
-                }
-            }
-        </div>
-    </form>
-
+                    </p>
+                </div>
+            </form>
+        </section>
+    </div>
+    }
 </div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+
+@section Scripts{
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
 }
