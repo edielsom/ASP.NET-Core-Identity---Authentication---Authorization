@@ -7,10 +7,10 @@ namespace IdentityManager.Models
 {
     public class TwoFactorAuthenticationViewModel
     {
-        //Usado para o login
+        //used to login
         public string Code { get; set; }
 
-        //Usado para registrar / signup
+        //used to register / signup
         public string Token { get; set; }
         public string QRCodeUrl { get; set; }
     }

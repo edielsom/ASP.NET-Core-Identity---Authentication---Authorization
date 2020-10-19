@@ -1,10 +1,12 @@
-﻿using IdentityManager.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using IdentityManager.Data;
+using IdentityManager.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityManager.Controllers
 {
@@ -24,7 +26,7 @@ namespace IdentityManager.Controllers
             var userList = _db.ApplicationUser.ToList();
             var userRole = _db.UserRoles.ToList();
             var roles = _db.Roles.ToList();
-            foreach (var user in userList)
+            foreach(var user in userList)
             {
                 var role = userRole.FirstOrDefault(u => u.UserId == user.Id);
                 if (role == null)
@@ -36,12 +38,14 @@ namespace IdentityManager.Controllers
                     user.Role = roles.FirstOrDefault(u => u.Id == role.RoleId).Name;
                 }
             }
+
             return View(userList);
+
         }
 
         public IActionResult Edit(string userId)
         {
-            var objFromDb = _db.ApplicationUser.FirstOrDefault(u => u.Id == userId);
+            var objFromDb = _db.ApplicationUser.FirstOrDefault(u=>u.Id==userId);
             if (objFromDb == null)
             {
                 return NotFound();
@@ -106,7 +110,7 @@ namespace IdentityManager.Controllers
             {
                 return NotFound();
             }
-            if (objFromDb.LockoutEnd != null && objFromDb.LockoutEnd > DateTime.Now)
+            if(objFromDb.LockoutEnd!=null && objFromDb.LockoutEnd > DateTime.Now)
             {
                 //user is locked and will remain locked untill lockoutend time
                 //clicking on this action will unlock them
@@ -155,7 +159,7 @@ namespace IdentityManager.Controllers
                 UserId = userId
             };
 
-            foreach (Claim claim in ClaimStore.claimsList)
+            foreach(Claim claim in ClaimStore.claimsList)
             {
                 UserClaim userClaim = new UserClaim
                 {
@@ -182,7 +186,7 @@ namespace IdentityManager.Controllers
             }
 
             var claims = await _userManager.GetClaimsAsync(user);
-            var result = await _userManager.RemoveClaimsAsync(user, claims);
+            var result = await _userManager.RemoveClaimsAsync(user,claims);
 
             if (!result.Succeeded)
             {

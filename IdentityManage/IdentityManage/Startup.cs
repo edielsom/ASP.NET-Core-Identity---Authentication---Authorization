@@ -1,13 +1,21 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using IdentityManager.Authorize;
+using IdentityManager.Data;
 using IdentityManager.Service;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
 
 namespace IdentityManager
 {
@@ -23,69 +31,49 @@ namespace IdentityManager
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
-
-            services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>()
-                    .AddDefaultTokenProviders();
-
+            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+            services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders().AddDefaultUI();
             services.AddTransient<IEmailSender, MailJetEmailSender>();
-
             services.Configure<IdentityOptions>(opt =>
             {
-                opt.Password.RequireDigit = false;
                 opt.Password.RequiredLength = 5;
-                opt.Password.RequireLowercase = false;
-                opt.Password.RequireUppercase = false;
-                opt.Password.RequireNonAlphanumeric = false;
-                opt.Password.RequiredUniqueChars = 0;
-                opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromSeconds(10);
-                opt.Lockout.AllowedForNewUsers = true;
-                opt.Lockout.MaxFailedAccessAttempts = 2;
-                // opt.User.AllowedUserNameCharacters = true;
-                opt.User.RequireUniqueEmail = true;
-                opt.SignIn.RequireConfirmedEmail = true;
-
+                opt.Password.RequireLowercase = true;
+                opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromSeconds(30);
+                opt.Lockout.MaxFailedAccessAttempts = 5;
+                
             });
-
-            services.ConfigureApplicationCookie(opt =>
+            //services.ConfigureApplicationCookie(opt =>
+            //{
+            //    opt.AccessDeniedPath = new Microsoft.AspNetCore.Http.PathString("/Home/Accessdenied");
+            //});
+            services.AddAuthentication().AddFacebook(options =>
             {
-                opt.AccessDeniedPath = new Microsoft.AspNetCore.Http.PathString("/Home/Accessdenied");
+                options.AppId = "2797980420437778";
+                options.AppSecret = "abe6f05cc42cb58fef1e689b54a04011";
             });
-            ExternalLogin(services);
 
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+                options.AddPolicy("UserAndAdmin", policy => policy.RequireRole("Admin").RequireRole("User"));
+                options.AddPolicy("Admin_CreateAccess", policy => policy.RequireRole("Admin").RequireClaim("create", "True"));
+                options.AddPolicy("Admin_Create_Edit_DeleteAccess", policy => policy.RequireRole("Admin").RequireClaim("create", "True")
+                .RequireClaim("edit", "True")
+                .RequireClaim("Delete", "True"));
+
+                options.AddPolicy("Admin_Create_Edit_DeleteAccess_OR_SuperAdmin", policy => policy.RequireAssertion(context =>
+                AuthorizeAdminWithClaimsOrSuperAdmin(context)));
+                options.AddPolicy("OnlySuperAdminChecker", policy => policy.Requirements.Add(new OnlySuperAdminChecker()));
+                options.AddPolicy("AdminWithMoreThan1000Days", policy => policy.Requirements.Add(new AdminWithMoreThan1000DaysRequirement(1000)));
+                options.AddPolicy("FirstNameAuth", policy => policy.Requirements.Add(new FirstNameAuthRequirement("billy")));
+            });
+            services.AddScoped<IAuthorizationHandler, AdminWithOver1000DaysHandler>();
+            services.AddScoped<IAuthorizationHandler, FirstNameAuthHandler>();
+            services.AddScoped<INumberOfDaysForAccount, NumberOfDaysForAccount>();
             services.AddControllersWithViews();
+            services.AddRazorPages();
         }
 
-        #region Método responsável por [CRIAR AS CONFIGURAÇÕES DOS LOGINS EXTERNOS]
-        private void ExternalLogin(IServiceCollection services)
-        {
-            //Configurando para acessar o login através do Facebook
-            services.AddAuthentication().AddFacebook(opt =>
-            {
-                //As informações de Acesso é configurado através da página do facebook developer.
-                opt.AppId = Configuration["ExternalLogin:Facebook:AppId"];
-                opt.AppSecret = Configuration["ExternalLogin:Facebook:AppSecret"];
-            });
-
-
-            //Configurando para acessar o login através do Google
-            services.AddAuthentication().AddGoogle(opt =>
-            {
-                //As informações de Acesso é configurado através da página do Google developer.
-                opt.ClientId = Configuration["ExternalLogin:Google:ClientId"];
-                opt.ClientSecret = Configuration["ExternalLogin:Google:ClientSecret"];
-            });
-
-            //Configurando para acessar o login através do Microsoft
-            services.AddAuthentication().AddMicrosoftAccount(opt =>
-            {
-                //As informações de Acesso é configurado através da página do Microsoft developer.
-                opt.ClientId = Configuration["ExternalLogin:Microsoft:ClientId"];
-                opt.ClientSecret = Configuration["ExternalLogin:Microsoft:ClientSecret"];
-            });
-        }
-        #endregion
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
@@ -103,16 +91,24 @@ namespace IdentityManager
             app.UseStaticFiles();
 
             app.UseRouting();
-
-            app.UseAuthorization();
             app.UseAuthentication();
+            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapRazorPages();
             });
+        }
+
+        private bool AuthorizeAdminWithClaimsOrSuperAdmin(AuthorizationHandlerContext context)
+        {
+            return (context.User.IsInRole("Admin") && context.User.HasClaim(c => c.Type == "Create" && c.Value == "True")
+                        && context.User.HasClaim(c => c.Type == "Edit" && c.Value == "True")
+                        && context.User.HasClaim(c => c.Type == "Delete" && c.Value == "True")
+                    ) || context.User.IsInRole("SuperAdmin");
         }
     }
 }

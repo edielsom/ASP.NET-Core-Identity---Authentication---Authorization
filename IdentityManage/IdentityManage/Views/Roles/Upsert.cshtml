@@ -1,13 +1,13 @@
 ﻿@model Microsoft.AspNetCore.Identity.IdentityRole
 
 @{ 
-    var title = "Inserir Regra";
+    var title = "Create Role";
 }
 
 <form method="post">
     @if(Model!=null && !String.IsNullOrEmpty(Model.Id))
     {
-        title = "Editar Regra";
+        title = "Edit Role";
         <input asp-for="@Model.Id" hidden />
     }
 
@@ -40,16 +40,16 @@
                             @if (Model != null && !String.IsNullOrEmpty(Model.Id))
                             {
                                 //update
-                                <input type="submit" class="btn btn-info w-100" value="Atualizar" />
+                                <input type="submit" class="btn btn-info w-100" value="Update" />
                             }
                             else
                             {
                                 //create
-                                <input type="submit" class="btn btn-primary w-100" value="Salvar" />
+                                <input type="submit" class="btn btn-primary w-100" value="Create" />
                             }
                         </div>
                         <div class="col">
-                            <a asp-action="Index" class="btn btn-success w-100">Voltar</a>
+                            <a asp-action="Index" class="btn btn-success w-100">Back</a>
                         </div>
                     </div>
                 </div>

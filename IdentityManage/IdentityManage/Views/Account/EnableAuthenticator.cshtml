@@ -1,13 +1,13 @@
 ﻿@model TwoFactorAuthenticationViewModel
 
 <p>
-    Por favor, insira o código abaixo em seu aplicativo autenticador..
+    Please enter the code below in your autheticator App.
 </p>
 <p>
     @Model.Token
 </p>
 <p>
-    Alternativamente, escaneie o QRCode abaixo com seu telefone celular.
+    Alternatively, scan the below QRCode with your mobile phone.
 </p>
 <div id="qrCode"></div>
 
@@ -20,9 +20,9 @@
     <button type="submit" class="btn btn-primary">Submit</button>
 </form>
 
-@section Scripts{
-    <script src="~/js/qrcode.js"></script>
-    <script type="text/javascript">
+@section Scripts{ 
+<script src="~/js/qrcode.js"></script>
+<script type="text/javascript">
     new QRCode(document.getElementById("qrCode"), "@Model.QRCodeUrl");
-    </script>
+</script>
 }

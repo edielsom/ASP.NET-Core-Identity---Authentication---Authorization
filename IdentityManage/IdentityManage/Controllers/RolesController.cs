@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using IdentityManager.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityManager.Controllers
 {
@@ -15,8 +17,7 @@ namespace IdentityManager.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
 
 
-        public RolesController(ApplicationDbContext db, UserManager<IdentityUser> userManager, 
-            RoleManager<IdentityRole> roleManager)
+        public RolesController(ApplicationDbContext db, UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager)
         {
             _db = db;
             _roleManager = roleManager;
@@ -43,26 +44,26 @@ namespace IdentityManager.Controllers
                 var objFromDb = _db.Roles.FirstOrDefault(u => u.Id == id);
                 return View(objFromDb);
             }
-
-
+            
+            
         }
 
         [HttpPost]
-        //[Authorize(Policy = "OnlySuperAdminChecker")]
+        [Authorize(Policy = "OnlySuperAdminChecker")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Upsert(IdentityRole roleObj)
         {
-            if (await _roleManager.RoleExistsAsync(roleObj.Name))
-            {
+            if(await _roleManager.RoleExistsAsync(roleObj.Name))
+            { 
                 //error
-                TempData[SD.Error] = "Regra já existe.";
+                TempData[SD.Error] = "Role already exists.";
                 return RedirectToAction(nameof(Index));
             }
             if (string.IsNullOrEmpty(roleObj.Id))
             {
                 //create
                 await _roleManager.CreateAsync(new IdentityRole() { Name = roleObj.Name });
-                TempData[SD.Success] = "Regra criada com sucesso";
+                TempData[SD.Success] = "Role created successfully";
             }
             else
             {
@@ -70,13 +71,13 @@ namespace IdentityManager.Controllers
                 var objRoleFromDb = _db.Roles.FirstOrDefault(u => u.Id == roleObj.Id);
                 if (objRoleFromDb == null)
                 {
-                    TempData[SD.Error] = "Regra não encontrada.";
+                    TempData[SD.Error] = "Role not found.";
                     return RedirectToAction(nameof(Index));
                 }
                 objRoleFromDb.Name = roleObj.Name;
                 objRoleFromDb.NormalizedName = roleObj.Name.ToUpper();
                 var result = await _roleManager.UpdateAsync(objRoleFromDb);
-                TempData[SD.Success] = "Regra atualizada com sucesso.";
+                TempData[SD.Success] = "Role updated successfully";
             }
             return RedirectToAction(nameof(Index));
 
@@ -84,26 +85,27 @@ namespace IdentityManager.Controllers
 
 
         [HttpPost]
-        //[Authorize(Policy = "OnlySuperAdminChecker")]
+        [Authorize(Policy = "OnlySuperAdminChecker")] 
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(string id)
         {
             var objFromDb = _db.Roles.FirstOrDefault(u => u.Id == id);
             if (objFromDb == null)
             {
-                TempData[SD.Error] = "Regra não encontrada.";
+                TempData[SD.Error] = "Role not found.";
                 return RedirectToAction(nameof(Index));
             }
             var userRolesForThisRole = _db.UserRoles.Where(u => u.RoleId == id).Count();
             if (userRolesForThisRole > 0)
             {
-                TempData[SD.Error] = "Não é possível excluir esta função, pois há usuários atribuídos a esta função.";
+                TempData[SD.Error] = "Cannot delete this role, since there are users assigned to this role.";
                 return RedirectToAction(nameof(Index));
             }
             await _roleManager.DeleteAsync(objFromDb);
-            TempData[SD.Success] = "Regra excluída com sucesso.";
+            TempData[SD.Success] = "Role deleted successfully.";
             return RedirectToAction(nameof(Index));
 
         }
+
     }
 }

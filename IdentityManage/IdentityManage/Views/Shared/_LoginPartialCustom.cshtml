@@ -3,18 +3,15 @@
 @inject SignInManager<IdentityUser> SignInManager
 @inject UserManager<IdentityUser> UserManager
 
-
-
-
 <ul class="navbar-nav">
     @if (SignInManager.IsSignedIn(User))
     {
         <li class="nav-item">
-            <a class="nav-link" href="#">Olá @UserManager.GetUserName(User)</a>
+            <a class="nav-link" href="#">Hello @UserManager.GetUserName(User)</a>
         </li>
         <li class="nav-item">
             <form id="logoutForm" method="post" class="form-inline" asp-controller="Account" asp-action="LogOff">
-                <button type="submit" class="btn nav-link">LogOut</button>
+                <button type="submit" class="btn nav-link">Logout</button>
             </form>
         </li>
     }
@@ -26,10 +23,5 @@
         <li class="nav-item">
             <a class="nav-link" asp-controller="Account" asp-action="Login">Login</a>
         </li>
-
-        <li class="nav-item">
-            <a class="nav-link" asp-controller="Account" asp-action="LoginTemplate">Login Template</a>
-        </li>
     }
-
 </ul>
